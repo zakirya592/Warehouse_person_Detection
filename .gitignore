@@ -4,3 +4,5 @@ archive/
 /venv
 /__pycache__
 /archive
+videos/
+runs/detect/predict*/
