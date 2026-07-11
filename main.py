@@ -23,7 +23,7 @@ PPE_CLASSES = {
 }
 
 # Video path
-video_path = "video-from-rawpixel-id-19297010-sd.mp4"
+video_path = "https://www.pexels.com/download/video/8487247/"
 cap = cv2.VideoCapture(video_path)
 
 while cap.isOpened():
@@ -69,14 +69,12 @@ while cap.isOpened():
             if label in ["NO-Hardhat", "NO-Mask", "NO-Safety Vest"]:
                 detected_violations.add(label)
     
-    # Play alarm only if ALL THREE violations are detected
-    if len(detected_violations) == 3:
+    # Play alarm if ANY violation is detected
+    if detected_violations:
         alarm.play()
-        print("ALARM: All PPE violations detected - NO-Hardhat, NO-Mask, NO-Safety Vest")
+        print(f"ALARM: PPE violations detected - {detected_violations}")
     else:
         alarm.stop()
-        if detected_violations:
-            print(f"Partial violations: {detected_violations} - Alarm not triggered")
     
     # Display annotated frame
     cv2.imshow("PPE Detection", annotated)
