@@ -1,9 +1,13 @@
 import cv2
 from ultralytics import YOLO
 from alarm import Alarm
+from screenshot import ScreenshotManager
 
 # Initialize alarm
 alarm = Alarm()
+
+# Initialize screenshot manager
+screenshot_manager = ScreenshotManager()
 
 # Load YOLO model
 model = YOLO("best.pt")
@@ -23,7 +27,7 @@ PPE_CLASSES = {
 }
 
 # Video path
-video_path = "https://www.pexels.com/download/video/8487247/"
+video_path = "https://www.shutterstock.com/shutterstock/videos/1095100351/preview/stock-footage-wide-shot-of-two-male-construction-supervisors-wearing-face-masks-green-reflective-vest-and-white.webm"
 cap = cv2.VideoCapture(video_path)
 
 while cap.isOpened():
@@ -37,6 +41,9 @@ while cap.isOpened():
     
     # Track which violations are detected
     detected_violations = set()
+    
+    # Track violating persons for screenshots
+    violating_persons = []
     
     # Create annotated frame
     annotated = frame.copy()
@@ -52,8 +59,15 @@ while cap.isOpened():
             x1, y1, x2, y2 = map(int, box.xyxy[0])
             
             # Define colors
-            if label in ["NO-Hardhat", "NO-Mask", "NO-Safety Vest"]:
+            if label in ["NO-Hardhat", "NO-Safety Vest"]:
                 color = (0, 0, 255)  # Red for violations
+                detected_violations.add(label)
+                # Store violating person info for screenshot
+                violating_persons.append({
+                    'label': label,
+                    'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+                    'confidence': confidence
+                })
             else:
                 color = (0, 255, 0)  # Green for compliant PPE
             
@@ -64,15 +78,16 @@ while cap.isOpened():
             cv2.putText(annotated, f"{label} {confidence:.2f}", 
                        (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 
                        0.6, color, 2)
-            
-            # Check for violations
-            if label in ["NO-Hardhat", "NO-Mask", "NO-Safety Vest"]:
-                detected_violations.add(label)
     
     # Play alarm if ANY violation is detected
     if detected_violations:
         alarm.play()
         print(f"ALARM: PPE violations detected - {detected_violations}")
+        
+        # Take screenshot with all violating persons highlighted
+        screenshot_path = screenshot_manager.take_screenshot(frame, violating_persons)
+        if screenshot_path:
+            print(f"Screenshot saved: {screenshot_path}")
     else:
         alarm.stop()
     
