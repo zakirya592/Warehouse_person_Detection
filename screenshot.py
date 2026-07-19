@@ -1,16 +1,25 @@
 import cv2
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ScreenshotManager:
-    def __init__(self, screenshots_dir="screenshots"):
+    def __init__(self, screenshots_dir="screenshots", reset_time_seconds=30):
         self.screenshots_dir = screenshots_dir
-        self.photographed_persons = []
+        self.reset_time_seconds = reset_time_seconds  # Reset photographed persons after this many seconds
+        self.photographed_persons = []  # List of dicts with person info and timestamp
         
         # Create screenshots directory
         if not os.path.exists(screenshots_dir):
             os.makedirs(screenshots_dir)
+    
+    def _clean_old_photographed_persons(self):
+        """Remove photographed persons that are older than reset_time_seconds"""
+        current_time = datetime.now()
+        self.photographed_persons = [
+            person for person in self.photographed_persons
+            if (current_time - person['timestamp']).total_seconds() < self.reset_time_seconds
+        ]
     
     def take_screenshot(self, frame, violating_persons):
         """
@@ -23,6 +32,9 @@ class ScreenshotManager:
         Returns:
             str: Path to the saved screenshot, or None if no new persons to photograph
         """
+        # Clean old photographed persons (allow re-photographing after reset_time_seconds)
+        self._clean_old_photographed_persons()
+        
         # Check if there are any new persons to photograph
         new_persons_to_photograph = []
         
@@ -60,7 +72,11 @@ class ScreenshotManager:
         screenshot_path = os.path.join(self.screenshots_dir, f"violation_{violations_str}_{timestamp}.jpg")
         cv2.imwrite(screenshot_path, screenshot_frame)
         
-        # Mark these persons as photographed
-        self.photographed_persons.extend(new_persons_to_photograph)
+        # Mark these persons as photographed with current timestamp
+        current_time = datetime.now()
+        for person_info in new_persons_to_photograph:
+            person_with_timestamp = person_info.copy()
+            person_with_timestamp['timestamp'] = current_time
+            self.photographed_persons.append(person_with_timestamp)
         
         return screenshot_path

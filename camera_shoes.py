@@ -9,8 +9,8 @@ alarm = Alarm()
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 os.environ["OPENCV_FFMPEG_LOGLEVEL"] = "-8"
 
-# Initialize screenshot manager
-screenshot_manager = ScreenshotManager()
+# Initialize screenshot manager with 30-second reset time
+screenshot_manager = ScreenshotManager(reset_time_seconds=30)
 
 # Load both YOLO models
 boots_model = YOLO("best11.pt")
@@ -45,9 +45,9 @@ PPE_CLASSES = {
     9: "Vehicle"
 }
 
-# Show boots and Person from boots model
-BOOTS_SHOW_LABELS = {"boots", "no_boots", "Person"}
-BOOTS_VIOLATION_LABELS = {"no_boots"}
+# Show boots, goggles, and Person from boots model
+BOOTS_SHOW_LABELS = {"boots", "no_boots", "goggles", "no_goggle", "Person"}
+BOOTS_VIOLATION_LABELS = {"no_boots", "no_goggle"}
 
 # Only these get drawn from the PPE model
 PPE_SHOW_LABELS = {"Hardhat", "NO-Hardhat", "Safety Vest", "NO-Safety Vest", "Person"}
@@ -63,6 +63,32 @@ MODEL_INPUT_SIZE = 192       # Smaller input size for faster inference
 # Person tracking settings
 MAX_MISSING_FRAMES = 10  # Remove tracked person after 10 consecutive frames without detection
 IOU_THRESHOLD = 0.3     # Intersection over Union threshold for matching detections to tracks
+
+def calculate_iou(box1, box2):
+    """Calculate Intersection over Union (IoU) between two bounding boxes"""
+    x1_1, y1_1, x2_1, y2_1 = box1
+    x1_2, y1_2, x2_2, y2_2 = box2
+    
+    # Calculate intersection
+    x1_i = max(x1_1, x1_2)
+    y1_i = max(y1_1, y1_2)
+    x2_i = min(x2_1, x2_2)
+    y2_i = min(y2_1, y2_2)
+    
+    if x2_i <= x1_i or y2_i <= y1_i:
+        return 0.0
+    
+    intersection = (x2_i - x1_i) * (y2_i - y1_i)
+    
+    # Calculate union
+    area1 = (x2_1 - x1_1) * (y2_1 - y1_1)
+    area2 = (x2_2 - x1_2) * (y2_2 - y1_2)
+    union = area1 + area2 - intersection
+    
+    if union == 0:
+        return 0.0
+    
+    return intersection / union
 
 class PersonTracker:
     """Track persons across frames to maintain persistent green boxes"""
@@ -223,6 +249,10 @@ def process_frame(frame, camera_name, frame_count, person_tracker):
 
     # ---- Run boots model with smaller input size ----
     boots_results = boots_model(frame, imgsz=MODEL_INPUT_SIZE, verbose=False)
+    
+    # Store all boots detections for mutual exclusion processing
+    boots_detections = []
+    
     for result in boots_results:
         for box in result.boxes:
             class_id = int(box.cls[0])
@@ -237,33 +267,95 @@ def process_frame(frame, camera_name, frame_count, person_tracker):
                 continue
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
+            
+            boots_detections.append({
+                'box': [x1, y1, x2, y2],
+                'label': label,
+                'confidence': confidence
+            })
+    
+    # Apply mutual exclusion logic for boots/no_boots and goggles/no_goggle
+    # Only keep the highest confidence detection for overlapping mutually exclusive classes
+    filtered_boots_detections = []
+    used_boots_indices = set()
+    
+    for i, det1 in enumerate(boots_detections):
+        if i in used_boots_indices:
+            continue
+            
+        label1 = det1['label']
+        box1 = det1['box']
+        conf1 = det1['confidence']
+        
+        # Check for overlapping mutually exclusive detections
+        conflicting_indices = []
+        for j, det2 in enumerate(boots_detections):
+            if i == j or j in used_boots_indices:
+                continue
+                
+            label2 = det2['label']
+            box2 = det2['box']
+            
+            # Check if mutually exclusive classes
+            is_conflicting = (
+                (label1 == "boots" and label2 == "no_boots") or
+                (label1 == "no_boots" and label2 == "boots") or
+                (label1 == "goggles" and label2 == "no_goggle") or
+                (label1 == "no_goggle" and label2 == "goggles")
+            )
+            
+            if is_conflicting:
+                # Calculate IoU to check if they overlap
+                iou = calculate_iou(box1, box2)
+                if iou > 0.3:  # If overlapping significantly
+                    conflicting_indices.append(j)
+        
+        if conflicting_indices:
+            # Compare confidences and keep the highest
+            all_indices = [i] + conflicting_indices
+            best_idx = max(all_indices, key=lambda idx: boots_detections[idx]['confidence'])
+            filtered_boots_detections.append(boots_detections[best_idx])
+            used_boots_indices.update(all_indices)
+        else:
+            filtered_boots_detections.append(det1)
+            used_boots_indices.add(i)
+    
+    # Process filtered boots detections
+    for detection in filtered_boots_detections:
+        x1, y1, x2, y2 = detection['box']
+        label = detection['label']
+        confidence = detection['confidence']
 
-            # Track all persons for persistent green boxes
-            if label == "Person":
-                detected_persons.append({
-                    'box': [x1, y1, x2, y2],
-                    'label': label,
-                    'confidence': confidence
-                })
+        # Track all persons for persistent green boxes
+        if label == "Person":
+            detected_persons.append({
+                'box': [x1, y1, x2, y2],
+                'label': label,
+                'confidence': confidence
+            })
 
-            if label in BOOTS_VIOLATION_LABELS:
-                color = (0, 0, 255)  # Red for no_boots
-                detected_violations.add(label)
-                violating_persons.append({
-                    'label': label,
-                    'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
-                    'confidence': confidence
-                })
-            else:
-                color = (0, 255, 0)  # Green for boots
+        if label in BOOTS_VIOLATION_LABELS:
+            color = (0, 0, 255)  # Red for no_boots/no_goggle
+            detected_violations.add(label)
+            violating_persons.append({
+                'label': label,
+                'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+                'confidence': confidence
+            })
+        else:
+            color = (0, 255, 0)  # Green for boots/goggles
 
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(annotated, f"{label} {confidence:.2f}",
-                       (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                       0.6, color, 2)
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(annotated, f"{label} {confidence:.2f}",
+                   (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                   0.6, color, 2)
 
     # ---- Run PPE model with smaller input size ----
     ppe_results = ppe_model(frame, imgsz=MODEL_INPUT_SIZE, verbose=False)
+    
+    # Store all PPE detections for mutual exclusion processing
+    ppe_detections = []
+    
     for result in ppe_results:
         for box in result.boxes:
             class_id = int(box.cls[0])
@@ -278,37 +370,99 @@ def process_frame(frame, camera_name, frame_count, person_tracker):
                 continue
 
             x1, y1, x2, y2 = map(int, box.xyxy[0])
+            
+            ppe_detections.append({
+                'box': [x1, y1, x2, y2],
+                'label': label,
+                'confidence': confidence
+            })
+    
+    # Apply mutual exclusion logic for Hardhat/NO-Hardhat and Safety Vest/NO-Safety Vest
+    # Only keep the highest confidence detection for overlapping mutually exclusive classes
+    filtered_detections = []
+    used_indices = set()
+    
+    for i, det1 in enumerate(ppe_detections):
+        if i in used_indices:
+            continue
+            
+        label1 = det1['label']
+        box1 = det1['box']
+        conf1 = det1['confidence']
+        
+        # Check for overlapping mutually exclusive detections
+        conflicting_indices = []
+        for j, det2 in enumerate(ppe_detections):
+            if i == j or j in used_indices:
+                continue
+                
+            label2 = det2['label']
+            box2 = det2['box']
+            
+            # Check if mutually exclusive classes
+            is_conflicting = (
+                (label1 == "Hardhat" and label2 == "NO-Hardhat") or
+                (label1 == "NO-Hardhat" and label2 == "Hardhat") or
+                (label1 == "Safety Vest" and label2 == "NO-Safety Vest") or
+                (label1 == "NO-Safety Vest" and label2 == "Safety Vest")
+            )
+            
+            if is_conflicting:
+                # Calculate IoU to check if they overlap
+                iou = calculate_iou(box1, box2)
+                if iou > 0.3:  # If overlapping significantly
+                    conflicting_indices.append(j)
+        
+        if conflicting_indices:
+            # Compare confidences and keep the highest
+            all_indices = [i] + conflicting_indices
+            best_idx = max(all_indices, key=lambda idx: ppe_detections[idx]['confidence'])
+            filtered_detections.append(ppe_detections[best_idx])
+            used_indices.update(all_indices)
+        else:
+            filtered_detections.append(det1)
+            used_indices.add(i)
+    
+    # Process filtered detections
+    for detection in filtered_detections:
+        x1, y1, x2, y2 = detection['box']
+        label = detection['label']
+        confidence = detection['confidence']
 
-            # Track all persons for persistent green boxes
-            if label == "Person":
-                detected_persons.append({
-                    'box': [x1, y1, x2, y2],
-                    'label': label,
-                    'confidence': confidence
-                })
+        # Track all persons for persistent green boxes
+        if label == "Person":
+            detected_persons.append({
+                'box': [x1, y1, x2, y2],
+                'label': label,
+                'confidence': confidence
+            })
 
-            if label in PPE_VIOLATION_LABELS:
-                color = (0, 0, 255)  # Red for violations
-                detected_violations.add(label)
-                violating_persons.append({
-                    'label': label,
-                    'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
-                    'confidence': confidence
-                })
-            else:
-                color = (0, 255, 0)  # Green for compliant PPE / Person
+        if label in PPE_VIOLATION_LABELS:
+            color = (0, 0, 255)  # Red for violations
+            detected_violations.add(label)
+            violating_persons.append({
+                'label': label,
+                'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2,
+                'confidence': confidence
+            })
+        else:
+            color = (0, 255, 0)  # Green for compliant PPE / Person
 
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(annotated, f"{label} {confidence:.2f}",
-                       (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX,
-                       0.6, color, 2)
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(annotated, f"{label} {confidence:.2f}",
+                   (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX,
+                   0.6, color, 2)
 
     # Play alarm if ANY violation from EITHER model is detected
     if detected_violations:
         alarm.play()
+        print(f"Violations detected: {detected_violations}")
+        print(f"Violating persons count: {len(violating_persons)}")
         screenshot_path = screenshot_manager.take_screenshot(frame, violating_persons)
         if screenshot_path:
             print(f"Screenshot saved: {screenshot_path}")
+        else:
+            print("Screenshot not saved (possibly already photographed)")
     else:
         alarm.stop()
 
