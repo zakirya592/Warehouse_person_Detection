@@ -43,7 +43,7 @@ PPE_CLASSES = {
 }
 
 # Only these get drawn from the boots model
-BOOTS_SHOW_LABELS = {"boots", "no_boots"}
+BOOTS_SHOW_LABELS = {"boots", "no_boots", "Person"}
 BOOTS_VIOLATION_LABELS = {"no_boots"}
 
 # Only these get drawn from the PPE model
@@ -138,7 +138,6 @@ while cap.isOpened():
     else:
         alarm.stop()
 
-    # Display annotated frame
     cv2.imshow("PPE Detection", annotated)
 
     # Press 'q' to quit
