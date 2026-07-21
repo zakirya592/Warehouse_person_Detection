@@ -458,7 +458,9 @@ def process_frame(frame, camera_name, frame_count, person_tracker):
         alarm.play()
         print(f"Violations detected: {detected_violations}")
         print(f"Violating persons count: {len(violating_persons)}")
-        screenshot_path = screenshot_manager.take_screenshot(frame, violating_persons)
+        screenshot_path = screenshot_manager.take_screenshot(
+            frame, violating_persons, camera_name=camera_name
+        )
         if screenshot_path:
             print(f"Screenshot saved: {screenshot_path}")
         else:
