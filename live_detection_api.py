@@ -17,13 +17,13 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 PORT = 5051
 
 _frame_lock = threading.Lock()
-_latest_combined_frame = None
+_latest_frames = {}
 _stream_running = False
 
 
 def _connect_cameras():
     caps = []
-    for config in CAMERA_CONFIGS:
+    for i, config in enumerate(CAMERA_CONFIGS, start=1):
         print(f"Connecting to {config['name']} at {config['ip']}...")
         cap = None
         for rtsp_url in config["rtsp_urls"]:
@@ -35,7 +35,7 @@ def _connect_cameras():
             if cap.isOpened():
                 ret, frame = cap.read()
                 if ret and frame is not None:
-                    caps.append((cap, config["name"]))
+                    caps.append((cap, config["name"], i))
                     print(f"Connected to {config['name']}")
                     break
                 cap.release()
@@ -49,7 +49,7 @@ def _connect_cameras():
 
 
 def _camera_loop():
-    global _latest_combined_frame, _stream_running
+    global _latest_frames, _stream_running
 
     caps = _connect_cameras()
     if not caps:
@@ -58,43 +58,43 @@ def _camera_loop():
         return
 
     _stream_running = True
-    frame_counters = {name: 0 for _, name in caps}
-    person_trackers = {name: PersonTracker() for _, name in caps}
+    frame_counters = {camera_id: 0 for _, _, camera_id in caps}
+    person_trackers = {camera_id: PersonTracker() for _, _, camera_id in caps}
 
     print(f"Live detection stream started with {len(caps)} camera(s).")
 
     while _stream_running:
-        frames = []
-        for cap, name in caps:
+        for cap, name, camera_id in caps:
             success, frame = cap.read()
             if success:
-                frame_counters[name] += 1
+                frame_counters[camera_id] += 1
                 processed = process_frame(
-                    frame, name, frame_counters[name], person_trackers[name]
+                    frame, name, frame_counters[camera_id], person_trackers[camera_id]
                 )
-                frames.append(processed)
+                with _frame_lock:
+                    _latest_frames[camera_id] = cv2.resize(processed, (1280, 720))
             else:
                 print(f"Failed to read from {name}")
 
-        if frames:
-            if len(frames) == 1:
-                combined = cv2.resize(frames[0], (1280, 720))
-            else:
-                f1 = cv2.resize(frames[0], (640, 360))
-                f2 = cv2.resize(frames[1], (640, 360))
-                combined = cv2.hconcat([f1, f2])
-
-            with _frame_lock:
-                _latest_combined_frame = combined
-
-    for cap, _ in caps:
+    for cap, _, _ in caps:
         cap.release()
 
 
-def _generate_mjpeg():
+def _generate_mjpeg(camera_id=None):
     while True:
         with _frame_lock:
-            frame = None if _latest_combined_frame is None else _latest_combined_frame.copy()
+            if camera_id is not None:
+                frame = None if camera_id not in _latest_frames else _latest_frames[camera_id].copy()
+            elif _latest_frames:
+                frames = sorted(_latest_frames.items())
+                if len(frames) == 1:
+                    frame = frames[0][1].copy()
+                else:
+                    f1 = cv2.resize(frames[0][1], (640, 360))
+                    f2 = cv2.resize(frames[1][1], (640, 360))
+                    frame = cv2.hconcat([f1, f2])
+            else:
+                frame = None
 
         if frame is None:
             time.sleep(0.1)
@@ -116,8 +116,12 @@ def index():
     return (
         "<html><body style='margin:0;background:#111;color:#fff;font-family:sans-serif'>"
         "<h2 style='padding:16px'>PPE Live Detection</h2>"
-        f"<img src='/live-detection' style='width:100%;max-width:1280px;display:block;margin:auto'/>"
-        "</body></html>"
+        "<div style='display:flex;flex-wrap:wrap;gap:16px;justify-content:center;padding:16px'>"
+        "<div><h3>Camera 1</h3>"
+        "<img src='/live-detection-camera-1' style='width:100%;max-width:640px;display:block'/></div>"
+        "<div><h3>Camera 2</h3>"
+        "<img src='/live-detection-camera-2' style='width:100%;max-width:640px;display:block'/></div>"
+        "</div></body></html>"
     )
 
 
@@ -129,12 +133,34 @@ def live_detection():
     )
 
 
+@app.route("/live-detection-camera-1")
+def live_detection_camera_1():
+    return Response(
+        _generate_mjpeg(camera_id=1),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@app.route("/live-detection-camera-2")
+def live_detection_camera_2():
+    return Response(
+        _generate_mjpeg(camera_id=2),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
 @app.route("/health")
 def health():
     return {
         "status": "ok",
         "stream_running": _stream_running,
-        "has_frame": _latest_combined_frame is not None,
+        "cameras": {
+            f"camera_{i}": {
+                "has_frame": i in _latest_frames,
+                "endpoint": f"/live-detection-camera-{i}",
+            }
+            for i in range(1, len(CAMERA_CONFIGS) + 1)
+        },
     }
 
 
@@ -143,7 +169,9 @@ def main():
     thread.start()
 
     print(f"API running on http://0.0.0.0:{PORT}")
-    print(f"Live stream: http://localhost:{PORT}/live-detection")
+    print(f"Camera 1: http://localhost:{PORT}/live-detection-camera-1")
+    print(f"Camera 2: http://localhost:{PORT}/live-detection-camera-2")
+    print(f"Combined: http://localhost:{PORT}/live-detection")
     app.run(host="0.0.0.0", port=PORT, threaded=True)
 
 
