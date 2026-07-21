@@ -86,31 +86,31 @@ class ScreenshotManager:
         screenshot_path = os.path.join(self.screenshots_dir, f"violation_{violations_str}_{timestamp}.jpg")
         cv2.imwrite(screenshot_path, screenshot_frame)
 
+        image_url = None
         if self.cloudinary_uploader and self.cloudinary_uploader.enabled:
             violation_labels = [p["label"] for p in new_persons_to_photograph]
             context = CloudinaryUploader.build_context(
                 camera_name=camera_name,
                 violations=violation_labels,
             )
-
-            def _on_upload_complete(result):
-                if result:
-                    print(f"Cloudinary upload complete: {result['url']}")
-                else:
-                    print(f"Cloudinary upload failed for: {screenshot_path}")
-
-            self.cloudinary_uploader.upload_async(
+            upload_result = self.cloudinary_uploader.upload(
                 screenshot_path,
-                on_complete=_on_upload_complete,
                 tags=["safety-violation", "ppe-detection"],
                 context=context,
             )
-        
+            if upload_result:
+                image_url = upload_result["url"]
+                print(f"Cloudinary upload complete: {image_url}")
+
         # Mark these persons as photographed with current timestamp
         current_time = datetime.now()
         for person_info in new_persons_to_photograph:
             person_with_timestamp = person_info.copy()
             person_with_timestamp['timestamp'] = current_time
             self.photographed_persons.append(person_with_timestamp)
-        
-        return screenshot_path
+
+        return {
+            "path": screenshot_path,
+            "image_url": image_url,
+            "persons": new_persons_to_photograph,
+        }

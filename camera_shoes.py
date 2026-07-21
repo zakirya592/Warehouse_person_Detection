@@ -2,6 +2,7 @@ import cv2
 from ultralytics import YOLO
 from alarm import Alarm
 from screenshot import ScreenshotManager
+from detection_alert_db import save_detection_alerts_async
 import os
 
 # Initialize alarm
@@ -192,6 +193,7 @@ class PersonTracker:
 CAMERA_CONFIGS = [
     {
         'name': 'Camera 1',
+        'location': 'Production Line',
         'rtsp_urls': [
             'rtsp://admin:Eisa@1234@192.168.100.239:554/stream1',
             # 'rtsp://admin:Eisa@1234@192.168.100.239:554/h264',
@@ -203,6 +205,7 @@ CAMERA_CONFIGS = [
     },
     {
         'name': 'Camera 2',
+        'location': 'Loading Area',
         'rtsp_urls': [
             'rtsp://admin:Eisa@1234@192.168.100.240:554/stream1',
             # 'rtsp://admin:Eisa@1234@192.168.100.240:554/h264',
@@ -213,6 +216,8 @@ CAMERA_CONFIGS = [
         'ip': '192.168.100.240'
     }
 ]
+
+CAMERA_LOCATIONS = {config["name"]: config.get("location", "Unknown") for config in CAMERA_CONFIGS}
 
 def process_frame(frame, camera_name, frame_count, person_tracker):
     """Process a single frame with both models"""
@@ -458,11 +463,17 @@ def process_frame(frame, camera_name, frame_count, person_tracker):
         alarm.play()
         print(f"Violations detected: {detected_violations}")
         print(f"Violating persons count: {len(violating_persons)}")
-        screenshot_path = screenshot_manager.take_screenshot(
+        screenshot_result = screenshot_manager.take_screenshot(
             frame, violating_persons, camera_name=camera_name
         )
-        if screenshot_path:
-            print(f"Screenshot saved: {screenshot_path}")
+        if screenshot_result:
+            print(f"Screenshot saved: {screenshot_result['path']}")
+            save_detection_alerts_async(
+                camera=camera_name,
+                location=CAMERA_LOCATIONS.get(camera_name, "Unknown"),
+                persons=screenshot_result["persons"],
+                image_url=screenshot_result.get("image_url"),
+            )
         else:
             print("Screenshot not saved (possibly already photographed)")
     else:

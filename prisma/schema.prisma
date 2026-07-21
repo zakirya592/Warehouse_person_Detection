@@ -1,0 +1,23 @@
+generator client {
+  provider             = "prisma-client-py"
+  interface            = "sync"
+  recursive_type_depth = 5
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model DetectionAlert {
+  id         Int      @id @default(autoincrement())
+  time       DateTime @default(now())
+  camera     String   @db.NVarChar(100)
+  location   String   @db.NVarChar(200)
+  event      String   @db.NVarChar(200)
+  confidence Float
+  image_url  String?  @db.NVarChar(500)
+  status     String   @default("New") @db.NVarChar(20)
+
+  @@map("detectionAlert")
+}
