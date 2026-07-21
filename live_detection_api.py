@@ -3,11 +3,12 @@ import threading
 import time
 
 import cv2
-from flask import Flask, Response
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 # Import detection logic and models from camera_shoes
 from camera_shoes import CAMERA_CONFIGS, PersonTracker, process_frame
+from detection_alert_db import get_all_alerts
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
@@ -164,6 +165,13 @@ def health():
     }
 
 
+@app.route("/detection-alerts", methods=["GET"])
+def detection_alerts():
+    status = request.args.get("status")
+    alerts = get_all_alerts(status=status)
+    return jsonify({"count": len(alerts), "data": alerts})
+
+
 def main():
     thread = threading.Thread(target=_camera_loop, daemon=True)
     thread.start()
@@ -172,6 +180,7 @@ def main():
     print(f"Camera 1: http://localhost:{PORT}/live-detection-camera-1")
     print(f"Camera 2: http://localhost:{PORT}/live-detection-camera-2")
     print(f"Combined: http://localhost:{PORT}/live-detection")
+    print(f"Alerts: http://localhost:{PORT}/detection-alerts")
     app.run(host="0.0.0.0", port=PORT, threaded=True)
 
 

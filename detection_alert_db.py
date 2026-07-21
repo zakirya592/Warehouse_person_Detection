@@ -112,6 +112,17 @@ def save_detection_alerts_async(
     return thread
 
 
+def get_all_alerts(status: Optional[AlertStatus] = None) -> list[dict]:
+    """Fetch all detection alerts, optionally filtered by status."""
+    with get_db() as db:
+        where = {"status": status} if status else {}
+        alerts = db.detectionalert.find_many(
+            where=where,
+            order={"time": "desc"},
+        )
+        return [alert.model_dump(mode="json") for alert in alerts]
+
+
 def get_recent_alerts(limit: int = 50, status: Optional[AlertStatus] = None) -> list[dict]:
     """Fetch recent detection alerts, optionally filtered by status."""
     with get_db() as db:
