@@ -6,8 +6,14 @@ import cv2
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
-# Import detection logic and models from camera_shoes
-from camera_shoes import CAMERA_CONFIGS, PersonTracker, process_frame
+from NVRConnect import (
+    ACTIVE_CHANNELS,
+    CAMERA_CONFIGS,
+    NVR_IP,
+    PersonTracker,
+    open_camera,
+    process_frame,
+)
 from detection_alert_db import get_all_alerts
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
@@ -25,27 +31,9 @@ _stream_running = False
 def _connect_cameras():
     caps = []
     for i, config in enumerate(CAMERA_CONFIGS, start=1):
-        print(f"Connecting to {config['name']} at {config['ip']}...")
-        cap = None
-        for rtsp_url in config["rtsp_urls"]:
-            print(f"  Trying: {rtsp_url}")
-            cap = cv2.VideoCapture(rtsp_url)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc("H", "2", "6", "4"))
-
-            if cap.isOpened():
-                ret, frame = cap.read()
-                if ret and frame is not None:
-                    caps.append((cap, config["name"], i))
-                    print(f"Connected to {config['name']}")
-                    break
-                cap.release()
-            else:
-                cap.release()
-
-        if cap is None or not any(c[0] == cap for c in caps):
-            print(f"Failed to connect to {config['name']}")
-
+        cap, name = open_camera(config)
+        if cap is not None:
+            caps.append((cap, name, i))
     return caps
 
 
@@ -114,14 +102,18 @@ def _generate_mjpeg(camera_id=None):
 
 @app.route("/")
 def index():
+    camera_blocks = "".join(
+        f"<div><h3>{config['name']}</h3>"
+        f"<p style='margin:0 0 8px;color:#aaa'>{config.get('location', 'Unknown')}</p>"
+        f"<img src='/live-detection-camera-{i}' "
+        f"style='width:100%;max-width:640px;display:block'/></div>"
+        for i, config in enumerate(CAMERA_CONFIGS, start=1)
+    )
     return (
         "<html><body style='margin:0;background:#111;color:#fff;font-family:sans-serif'>"
-        "<h2 style='padding:16px'>PPE Live Detection</h2>"
+        f"<h2 style='padding:16px'>PPE Live Detection — NVR ({NVR_IP})</h2>"
         "<div style='display:flex;flex-wrap:wrap;gap:16px;justify-content:center;padding:16px'>"
-        "<div><h3>Camera 1</h3>"
-        "<img src='/live-detection-camera-1' style='width:100%;max-width:640px;display:block'/></div>"
-        "<div><h3>Camera 2</h3>"
-        "<img src='/live-detection-camera-2' style='width:100%;max-width:640px;display:block'/></div>"
+        f"{camera_blocks}"
         "</div></body></html>"
     )
 
@@ -134,33 +126,30 @@ def live_detection():
     )
 
 
-@app.route("/live-detection-camera-1")
-def live_detection_camera_1():
+@app.route("/live-detection-camera-<int:camera_id>")
+def live_detection_camera(camera_id):
+    if camera_id < 1 or camera_id > len(CAMERA_CONFIGS):
+        return jsonify({"error": f"Camera {camera_id} not configured"}), 404
     return Response(
-        _generate_mjpeg(camera_id=1),
+        _generate_mjpeg(camera_id=camera_id),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
-
-
-@app.route("/live-detection-camera-2")
-def live_detection_camera_2():
-    return Response(
-        _generate_mjpeg(camera_id=2),
-        mimetype="multipart/x-mixed-replace; boundary=frame",
-    )
-
 
 @app.route("/health")
 def health():
     return {
         "status": "ok",
         "stream_running": _stream_running,
+        "nvr_ip": NVR_IP,
+        "active_channels": ACTIVE_CHANNELS,
         "cameras": {
             f"camera_{i}": {
+                "name": config["name"],
+                "location": config.get("location", "Unknown"),
                 "has_frame": i in _latest_frames,
                 "endpoint": f"/live-detection-camera-{i}",
             }
-            for i in range(1, len(CAMERA_CONFIGS) + 1)
+            for i, config in enumerate(CAMERA_CONFIGS, start=1)
         },
     }
 
@@ -177,8 +166,12 @@ def main():
     thread.start()
 
     print(f"API running on http://0.0.0.0:{PORT}")
-    print(f"Camera 1: http://localhost:{PORT}/live-detection-camera-1")
-    print(f"Camera 2: http://localhost:{PORT}/live-detection-camera-2")
+    print(f"NVR: {NVR_IP} — {len(CAMERA_CONFIGS)} channel(s) configured")
+    for i, config in enumerate(CAMERA_CONFIGS, start=1):
+        print(
+            f"  Camera {i} ({config.get('location', 'Unknown')}): "
+            f"http://localhost:{PORT}/live-detection-camera-{i}"
+        )
     print(f"Combined: http://localhost:{PORT}/live-detection")
     print(f"Alerts: http://localhost:{PORT}/detection-alerts")
     app.run(host="0.0.0.0", port=PORT, threaded=True)
