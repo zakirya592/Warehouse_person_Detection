@@ -7,3 +7,4 @@ flask-cors
 cloudinary
 python-dotenv
 prisma
+pywhatkit

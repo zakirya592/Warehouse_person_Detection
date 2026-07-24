@@ -1,0 +1,45 @@
+Date: 24/7/2026
+Time: 15:2
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:02 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Helmet Detected* — 39.7% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887334/safety-violations/violation_NO-Hardhat_20260724_150211.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:3
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:02 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Safety Vest Detected* — 26.5% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887340/safety-violations/violation_NO-Safety%20Vest_20260724_150219.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:3
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:02 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Helmet Detected* — 29.2% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887344/safety-violations/violation_NO-Hardhat_20260724_150222.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:4
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:03 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Safety Vest Detected* — 40.7% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887406/safety-violations/violation_NO-Safety%20Vest_20260724_150324.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:4
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:04 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Safety Vest Detected* — 39.1% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887444/safety-violations/violation_NO-Safety%20Vest_20260724_150402.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:5
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:04 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Helmet Detected* — 27.9% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887473/safety-violations/violation_NO-Hardhat_20260724_150432.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:5
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:04 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Safety Vest Detected* — 35.3% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887478/safety-violations/violation_NO-Safety%20Vest_20260724_150437.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:6
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:05 AM⚠️ *Violations:* 1 detected*Detected Issues:* • *No Safety Vest Detected* — 41.7% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887557/safety-violations/violation_NO-Safety%20Vest_20260724_150555.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------
+Date: 24/7/2026
+Time: 15:9
+Phone Number: +923015199394
+Message: 🚨 *PPE SAFETY ALERT* 🚨━━━━━━━━━━━━━━━━━━━━📍 *Location:* Production Line📷 *Camera:* NVR Channel 1🕐 *Time:* 24 Jul 2026, 10:08 AM⚠️ *Violations:* 2 detected*Detected Issues:* • *No Safety Vest Detected* — 47.4% confidence • *No Safety Vest Detected* — 31.7% confidence📸 *Evidence:* https://res.cloudinary.com/ddaeyau0r/image/upload/v1784887734/safety-violations/violation_NO-Safety%20Vest_NO-Safety%20Vest_20260724_150853.jpg🔴 _Status: New — Action Required__AI Safety Detection System_
+--------------------

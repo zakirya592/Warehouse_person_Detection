@@ -3,6 +3,7 @@ import threading
 from contextlib import contextmanager
 from typing import Literal, Optional
 
+from alert_notifier import notify_detection_alerts_async
 from dotenv import load_dotenv
 from prisma import Prisma
 
@@ -93,6 +94,14 @@ def save_detection_alerts(
             )
         except Exception as exc:
             logger.error("Failed to save alert for %s: %s", person.get("label"), exc)
+
+    if saved:
+        notify_detection_alerts_async(
+            camera=camera,
+            location=location,
+            alerts=saved,
+            image_url=image_url,
+        )
     return saved
 
 

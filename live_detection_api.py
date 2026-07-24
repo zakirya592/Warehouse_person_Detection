@@ -15,6 +15,7 @@ from NVRConnect import (
     process_frame,
 )
 from detection_alert_db import get_all_alerts
+from notification_logging import setup_notification_logging
 
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
@@ -162,6 +163,9 @@ def detection_alerts():
 
 
 def main():
+    log_file = setup_notification_logging()
+    print(f"Notification logs: {log_file}")
+
     thread = threading.Thread(target=_camera_loop, daemon=True)
     thread.start()
 
